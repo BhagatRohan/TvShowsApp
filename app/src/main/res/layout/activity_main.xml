@@ -72,7 +72,7 @@
             android:clipToPadding="false"
             android:orientation="vertical"
             android:padding="@dimen/_4sdp"
-            android:visibility="gone"
+            tools:listitem="@layout/item_container_tv_show"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintTop_toBottomOf="@id/layoutHeader" />
