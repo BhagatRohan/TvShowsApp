@@ -11,7 +11,7 @@ class ApiClient {
         fun getRetrofitClient(): Retrofit? {
             if (retrofit == null){
                 retrofit = Retrofit.Builder()
-                    .baseUrl(" https://www.episodate.com/api/")
+                    .baseUrl("https://www.episodate.com/api/")
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
             }

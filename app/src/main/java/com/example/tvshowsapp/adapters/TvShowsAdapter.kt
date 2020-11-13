@@ -6,9 +6,10 @@ import androidx.databinding.DataBindingUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.example.tvshowsapp.R
 import com.example.tvshowsapp.databinding.ItemContainerTvShowBinding
+import com.example.tvshowsapp.listeners.TvShowsListener
 import com.example.tvshowsapp.models.TvShow
 
-class TvShowsAdapter(private val tvShows: List<TvShow>) :
+class TvShowsAdapter(private val tvShows: List<TvShow>, private val tvShowsListener: TvShowsListener) :
     RecyclerView.Adapter<TvShowsAdapter.TvShowViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TvShowViewHolder {
@@ -32,6 +33,9 @@ class TvShowsAdapter(private val tvShows: List<TvShow>) :
         fun bindTvShow(tvShow: TvShow) {
             binding.tvShow = tvShow
             binding.executePendingBindings()
+            binding.root.setOnClickListener {
+                tvShowsListener.onTvShowClicked(tvShow)
+            }
         }
     }
 
