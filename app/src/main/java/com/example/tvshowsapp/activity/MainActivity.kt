@@ -62,6 +62,13 @@ class MainActivity : AppCompatActivity(), TvShowsListener {
                 }
             }
         })
+
+        activityMainBinding?.imageWatchList?.setOnClickListener {
+            startActivity(Intent(applicationContext, WatchListActivity::class.java))
+        }
+        activityMainBinding?.imageSearch?.setOnClickListener {
+            startActivity(Intent(applicationContext, SearchActivity::class.java))
+        }
         getMostPopularTvShows()
     }
 
@@ -77,12 +84,7 @@ class MainActivity : AppCompatActivity(), TvShowsListener {
 
     override fun onTvShowClicked(tvShow: TvShow) {
         val intent = Intent(applicationContext, TvShowDetailsActivity::class.java).apply {
-            putExtra("id", tvShow.id)
-            putExtra("name", tvShow.name)
-            putExtra("startDate", tvShow.startDate)
-            putExtra("country", tvShow.country)
-            putExtra("network", tvShow.network)
-            putExtra("status", tvShow.status)
+            putExtra("tvShow", tvShow)
         }
         startActivity(intent)
     }

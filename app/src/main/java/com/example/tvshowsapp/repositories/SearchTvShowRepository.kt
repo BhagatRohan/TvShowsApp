@@ -4,12 +4,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.tvshowsapp.network.ApiClient
 import com.example.tvshowsapp.network.ApiService
-import com.example.tvshowsapp.responses.TvShowDetailsResponse
+import com.example.tvshowsapp.responses.TvShowsResponse
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
-class TvShowDetailsRepository {
+class SearchTvShowRepository {
 
     private var apiService: ApiService? = null
 
@@ -17,18 +17,18 @@ class TvShowDetailsRepository {
         apiService = ApiClient.getRetrofitClient()?.create(ApiService::class.java)
     }
 
-    fun getTvShowDetails(tvShowId: String): LiveData<TvShowDetailsResponse> {
-        val data = MutableLiveData<TvShowDetailsResponse>()
+    fun searchtvShow(query: String, page: Int): LiveData<TvShowsResponse> {
+        val data = MutableLiveData<TvShowsResponse>()
 
-        apiService?.getTvShowDetails(tvShowId)?.enqueue(object : Callback<TvShowDetailsResponse> {
+        apiService?.searchTvShow(query, page)?.enqueue(object : Callback<TvShowsResponse> {
             override fun onResponse(
-                call: Call<TvShowDetailsResponse>,
-                response: Response<TvShowDetailsResponse>
+                call: Call<TvShowsResponse>,
+                response: Response<TvShowsResponse>
             ) {
                 data.value = response.body()
             }
 
-            override fun onFailure(call: Call<TvShowDetailsResponse>, t: Throwable) {
+            override fun onFailure(call: Call<TvShowsResponse>, t: Throwable) {
                 data.value = null
             }
         })

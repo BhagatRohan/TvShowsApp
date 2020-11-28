@@ -1,14 +1,18 @@
 package com.example.tvshowsapp.activity
 
 import android.content.Intent
+import android.content.res.Resources
 import android.net.Uri
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.text.HtmlCompat
@@ -16,14 +20,27 @@ import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.ViewModelProvider
 import androidx.viewpager2.widget.ViewPager2
 import com.example.tvshowsapp.R
+import com.example.tvshowsapp.adapters.EpisodesAdapter
 import com.example.tvshowsapp.adapters.ImageSliderAdapter
 import com.example.tvshowsapp.databinding.ActivityTvShowDetailsBinding
+import com.example.tvshowsapp.databinding.LayoutEpisodesBottomSheetBinding
+import com.example.tvshowsapp.models.TvShow
+import com.example.tvshowsapp.utils.TempDataHolder
 import com.example.tvshowsapp.viewModels.TvShowDetailsViewModel
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.schedulers.Schedulers
 import java.util.*
 
 class TvShowDetailsActivity : AppCompatActivity() {
     private var binding: ActivityTvShowDetailsBinding? = null
     private var tvShowsDetailViewModel: TvShowDetailsViewModel? = null
+    private var episodeBottomSheetDialog: BottomSheetDialog? = null
+    private var layoutEpisodesBottomSheetBinding: LayoutEpisodesBottomSheetBinding? = null
+    private var tvShow: TvShow? = null
+    private var isTvShowAvailableInWatchlist = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,15 +50,31 @@ class TvShowDetailsActivity : AppCompatActivity() {
 
     private fun doInitialization() {
         tvShowsDetailViewModel = ViewModelProvider(this).get(TvShowDetailsViewModel::class.java)
-        binding?.imageback?.setOnClickListener {
-            onBackPressed()
-        }
+        binding?.imageback?.setOnClickListener { onBackPressed() }
+        tvShow = intent.getSerializableExtra("tvShow") as TvShow
+        checkTvShowInWatchlist()
         getTvShowDetails()
+    }
+
+    private fun checkTvShowInWatchlist() {
+        val compositeDisposable = CompositeDisposable()
+        tvShowsDetailViewModel?.getTvShowFromWatchlist(tvShow?.id.toString())
+            ?.subscribeOn(Schedulers.computation())
+            ?.observeOn(AndroidSchedulers.mainThread())
+            ?.subscribe { tvShow ->
+                isTvShowAvailableInWatchlist = true
+                binding?.imageWatchList?.setImageResource(R.drawable.ic_added)
+                compositeDisposable.dispose()
+            }?.let {
+                compositeDisposable.add(
+                    it
+                )
+            }
     }
 
     private fun getTvShowDetails() {
         binding?.isLoading = true
-        val tvShowId = (intent.getIntExtra("id", -1)).toString()
+        val tvShowId = (tvShow?.id).toString()
         Log.v("Show Id", tvShowId)
 
         tvShowsDetailViewModel?.getTvShowDetails(tvShowId)?.observe(this, { tvShowDetailResponse ->
@@ -87,9 +120,91 @@ class TvShowDetailsActivity : AppCompatActivity() {
                     }
                     startActivity(intent)
                 }
-
                 buttonWebsite.visibility = View.VISIBLE
                 buttonEpisodes.visibility = View.VISIBLE
+
+                buttonEpisodes.setOnClickListener {
+                    if (episodeBottomSheetDialog == null) {
+                        episodeBottomSheetDialog = BottomSheetDialog(this@TvShowDetailsActivity)
+                        layoutEpisodesBottomSheetBinding = DataBindingUtil.inflate(
+                            LayoutInflater.from(this@TvShowDetailsActivity),
+                            R.layout.layout_episodes_bottom_sheet,
+                            findViewById(R.id.episodesContainer),
+                            false
+                        )
+
+                        layoutEpisodesBottomSheetBinding?.root?.let {
+                            episodeBottomSheetDialog?.setContentView(
+                                it
+                            )
+                        }
+
+                        layoutEpisodesBottomSheetBinding?.episodesRecyclerView?.adapter =
+                            tvShowDetailResponse?.tvShowDetails?.episodes?.let {
+                                EpisodesAdapter(
+                                    it
+                                )
+                            }
+
+                        layoutEpisodesBottomSheetBinding?.textTitle?.text =
+                            String.format("Episodes | %s", tvShow?.name)
+                        layoutEpisodesBottomSheetBinding?.imageClose?.setOnClickListener {
+                            episodeBottomSheetDialog?.dismiss()
+                        }
+                    }
+
+                    val frameLayout =
+                        episodeBottomSheetDialog?.findViewById<FrameLayout>(com.google.android.material.R.id.design_bottom_sheet)
+                    if (frameLayout != null) {
+                        val bottomSheetBehavior = BottomSheetBehavior.from(frameLayout)
+                        bottomSheetBehavior.peekHeight =
+                            Resources.getSystem().displayMetrics.heightPixels
+                        bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
+                    }
+
+                    episodeBottomSheetDialog?.show()
+                }
+
+                binding?.imageWatchList?.setOnClickListener {
+                    val compositeDisposable = CompositeDisposable()
+
+                    if (isTvShowAvailableInWatchlist){
+                        tvShow?.let { tvShow ->
+                            tvShowsDetailViewModel?.removeTvShowFromWatchlist(tvShow)
+                                ?.subscribeOn(Schedulers.computation())
+                                ?.observeOn(AndroidSchedulers.mainThread())
+                                ?.subscribe {
+                                    isTvShowAvailableInWatchlist = false
+                                    TempDataHolder.IS_WATCHLIST_UPDATED = true
+                                    binding?.imageWatchList?.setImageResource(R.drawable.ic_watchlist)
+                                    Toast.makeText(
+                                        applicationContext,
+                                        "Removed from WatchList",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    compositeDisposable.dispose()
+                                }
+                        }?.let { compositeDisposable.add(it) }
+                    }else{
+                        tvShow?.let { tvShow ->
+                            tvShowsDetailViewModel?.addToWatchList(tvShow)
+                                ?.subscribeOn(Schedulers.io())
+                                ?.observeOn(AndroidSchedulers.mainThread())
+                                ?.subscribe {
+                                    TempDataHolder.IS_WATCHLIST_UPDATED = true
+                                    binding?.imageWatchList?.setImageResource(R.drawable.ic_added)
+                                    Toast.makeText(
+                                        applicationContext,
+                                        "Added to WatchList",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    compositeDisposable.dispose()
+                                }
+                        }?.let { compositeDisposable.add(it) }
+                    }
+
+                }
+                binding?.imageWatchList?.visibility = View.VISIBLE
                 loadBasicTvDetails()
             }
         })
@@ -157,11 +272,11 @@ class TvShowDetailsActivity : AppCompatActivity() {
 
     private fun loadBasicTvDetails() {
         binding?.run {
-            tvShowName = intent.getStringExtra("name")
+            tvShowName = tvShow?.name
             networkCountry =
-                intent.getStringExtra("network") + " (" + intent.getStringExtra("country") + ")"
-            status = intent.getStringExtra("status")
-            startedDate = intent.getStringExtra("startDate")
+                tvShow?.network + " (" + tvShow?.country + ")"
+            status = tvShow?.status
+            startedDate = tvShow?.startDate
             textName.visibility = View.VISIBLE
             textNetworkCountry.visibility = View.VISIBLE
             textStatus.visibility = View.VISIBLE
